@@ -7,6 +7,7 @@ cmake-build-*/
 *.out
 *.so
 *.dll
+*.mmap
 
 # 日志文件
 *.log
