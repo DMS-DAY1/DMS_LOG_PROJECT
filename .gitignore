@@ -1,0 +1,16 @@
+# C++编译产物
+build/
+cmake-build-*/
+*.o
+*.a
+*.exe
+*.out
+*.so
+*.dll
+
+# 日志文件
+*.log
+
+# vscode本地配置
+.vscode/
+.DS_Store
