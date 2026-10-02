@@ -18,4 +18,14 @@ endif()
 target_compile_features(test_mmap PRIVATE cxx_std_17)
 
 target_include_directories(test_mmap PRIVATE
-    src)
+    src
+)
+
+add_executable(test_defer test/test_defer.cc)
+
+target_compile_features(test_defer PRIVATE cxx_std_17)
+
+target_include_directories(test_defer PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+

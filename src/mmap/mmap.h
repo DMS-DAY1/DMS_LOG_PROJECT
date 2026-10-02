@@ -49,12 +49,12 @@ private:
 
     size_t capacity_;
 
-    // 平台相关的"资源句柄"：Windows 是 HANDLE，Linux 是文件描述符
+    
 #ifdef _WIN32
-    HANDLE handle_;       // 映射对象
-    HANDLE file_handle_;  // 文件
+    HANDLE handle_;       
+    HANDLE file_handle_;  
 #else
-    int fd_ = -1;         // 文件描述符（Linux 下映射不需要额外对象）
+    int fd_ = -1;
 #endif
 
     Mmapheader* header;
