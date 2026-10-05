@@ -29,3 +29,11 @@ target_include_directories(test_defer PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
 
+add_executable(test_space test/test_space.cc)
+
+target_compile_features(test_space PRIVATE cxx_std_17)
+
+target_include_directories(test_space PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
