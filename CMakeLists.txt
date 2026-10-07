@@ -37,3 +37,24 @@ target_include_directories(test_space PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
 
+add_executable(test_fmt test/test_fmt.cc)
+
+target_compile_features(test_fmt PRIVATE cxx_std_17)
+
+target_include_directories(test_fmt PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+# MSVC 需要它才能正确解析 UTF-8 源码；同时 fmt 会在编译期探测源字符集是否为 UTF-8
+# （见 fmt/core.h 里的 is_utf8_enabled），没有这个选项会直接 static_assert 失败
+if(WIN32)
+    target_compile_options(test_fmt PRIVATE /utf-8)
+endif()
+
+add_executable(test_log_msg test/test_log_msg.cc)
+
+target_compile_features(test_log_msg PRIVATE cxx_std_17)
+
+target_include_directories(test_log_msg PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
