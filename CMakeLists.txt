@@ -58,3 +58,20 @@ target_compile_features(test_log_msg PRIVATE cxx_std_17)
 target_include_directories(test_log_msg PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
+
+add_executable(test_internal_log test/test_internal_log.cc)
+
+target_compile_features(test_internal_log PRIVATE cxx_std_17)
+
+target_include_directories(test_internal_log PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+# 打开日志开关：统一由构建系统传宏，调用方 .cpp 不用自己 #define
+target_compile_definitions(test_internal_log PRIVATE CAN_LOG)
+
+# 目标必须先 add_executable 创建，target_* 命令才能生效（顺序写反会直接报错）
+# MSVC 需要它才能正确解析 UTF-8 源码；fmt 会在编译期探测源字符集是否为 UTF-8
+if(WIN32)
+    target_compile_options(test_internal_log PRIVATE /utf-8)
+endif()
