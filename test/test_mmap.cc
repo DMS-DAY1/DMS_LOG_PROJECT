@@ -11,6 +11,8 @@
 
 namespace fs = std::filesystem;
 
+using my_log::Mmap;
+
 static const char* kTestFile = "test.mmap";
 
 // 断言失败就打印并置为失败状态

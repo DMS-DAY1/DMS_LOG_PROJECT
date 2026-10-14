@@ -75,3 +75,43 @@ target_compile_definitions(test_internal_log PRIVATE CAN_LOG)
 if(WIN32)
     target_compile_options(test_internal_log PRIVATE /utf-8)
 endif()
+
+add_executable(test_thread_pool test/test_thread_pool.cc)
+
+target_compile_features(test_thread_pool PRIVATE cxx_std_17)
+
+target_include_directories(test_thread_pool PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+# 定时器依赖线程池，所以要把 executortimer.cc 一起编进来（ThreadPool.h 是 header-only，不用编）
+add_executable(test_executortimer
+    test/test_executortimer.cc
+    strand/executortimer.cc)
+
+target_compile_features(test_executortimer PRIVATE cxx_std_17)
+
+target_include_directories(test_executortimer PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_compile_options(test_executortimer PRIVATE /utf-8)
+endif()
+
+# Executor 依赖三条链：ExecutorContext（.cc）+ ExecutorTimer（.cc）+ ThreadPool（header-only，不用编）
+add_executable(test_executor
+    test/test_executor.cc
+    strand/Executor.cc
+    strand/ExecutorContext.cc
+    strand/executortimer.cc)
+
+target_compile_features(test_executor PRIVATE cxx_std_17)
+
+target_include_directories(test_executor PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_compile_options(test_executor PRIVATE /utf-8)
+endif()

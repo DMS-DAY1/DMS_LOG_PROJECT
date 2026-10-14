@@ -4,6 +4,9 @@
 
 namespace fs = std::filesystem;
 
+namespace my_log {
+
+
 constexpr size_t kdefaultcapacity = 512 * 1024;
 
 Mmap::Mmap(fpath file_path ) : file_path_(std::move(file_path)), handle_(nullptr), capacity_(0), mem_ptr_(nullptr), file_handle_(nullptr), header(nullptr) {
@@ -191,3 +194,5 @@ void Mmap::EnsureCapacity_(size_t new_size) {
     }
     Reserve(real_size);
 };
+
+}  // namespace my_log

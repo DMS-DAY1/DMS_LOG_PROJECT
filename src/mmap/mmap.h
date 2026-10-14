@@ -9,6 +9,9 @@
 #include <sysinfoapi.h>
 #endif
 
+namespace my_log {
+
+
 class Mmap {
 public:
     using fpath = std::filesystem::path;
@@ -77,3 +80,5 @@ private:
 
     void EnsureCapacity_(size_t new_size);
 };
+
+}  // namespace my_log
