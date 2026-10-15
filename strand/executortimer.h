@@ -28,7 +28,7 @@ namespace my_log {
     class ExecutorTimer {
     public:
         struct InternalS {
-            std::chrono::time_point<std::chrono::high_resolution_clock> timept;
+            std::chrono::time_point<std::chrono::high_resolution_clock> timept{};
             Task task;
             RepeatTaskid repeat_id;
             bool operator<(const InternalS& d) const {

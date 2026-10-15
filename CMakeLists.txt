@@ -115,3 +115,22 @@ target_include_directories(test_executor PRIVATE
 if(WIN32)
     target_compile_options(test_executor PRIVATE /utf-8)
 endif()
+
+# Context 是全局门面，依赖链：context.cc → Executor.cc → ExecutorContext.cc / executortimer.cc
+# （ThreadPool.h 是 header-only，不用编进来）
+add_executable(test_context
+    test/test_context.cc
+    context/context.cc
+    strand/Executor.cc
+    strand/ExecutorContext.cc
+    strand/executortimer.cc)
+
+target_compile_features(test_context PRIVATE cxx_std_17)
+
+target_include_directories(test_context PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_compile_options(test_context PRIVATE /utf-8)
+endif()

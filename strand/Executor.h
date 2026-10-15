@@ -19,8 +19,8 @@ namespace my_log {
 
         void PostTask(const TaskRunnerTag& runner_tag, Task task);
 
-        template <typename R, typename P>
-        void PostDelayedTask(const TaskRunnerTag& runner_tag, Task task, const std::chrono::duration<R,P>& delta) {
+        template <typename P, typename R>
+        void PostDelayedTask(const TaskRunnerTag& runner_tag, Task task, const std::chrono::duration<P,R>& delta) {
             Task func = std::bind(&Executor::PostTask, this, runner_tag, std::move(task));
             executor_timer_->Start();
             executor_timer_->PostDelayedTask(std::move(func), delta);
