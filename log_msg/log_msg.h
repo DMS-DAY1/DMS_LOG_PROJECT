@@ -4,6 +4,8 @@
 
 #include <string>
 
+namespace my_log {
+
 using StringView = std::string_view;
 
 enum class Log_Level {
@@ -54,3 +56,5 @@ struct LogMsg {
 
     StringView message;
 };
+
+} // namespace my_log

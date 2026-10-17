@@ -134,3 +134,47 @@ target_include_directories(test_context PRIVATE
 if(WIN32)
     target_compile_options(test_context PRIVATE /utf-8)
 endif()
+
+# utils：平台适配层 + 文件工具。sys_util 按平台二选一（同 src/mmap 的模式），
+# file_util.cc / sys_util.cc 平台无关，两个平台都编。
+# 注意：utils 的 .cc 里写的是 #include "utils/sys_util.h"（从项目根算），
+# 所以必须像其他 target 一样把 ${PROJECT_SOURCE_DIR} 加进 include 路径。
+add_executable(test_utils
+    test/test_utils.cc
+    utils/file_util.cc
+    utils/sys_util.cc)
+
+target_compile_features(test_utils PRIVATE cxx_std_17)
+
+target_include_directories(test_utils PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_sources(test_utils PRIVATE utils/sys_util_win.cc)
+    # MSVC 需要它才能正确解析 UTF-8 源码（测试文件里有中文注释）
+    target_compile_options(test_utils PRIVATE /utf-8)
+else()
+    target_sources(test_utils PRIVATE utils/sys_util_linux.cc)
+endif()
+
+# formatter + sink：DefaultFormatter 依赖 sys_util（时间/pid/tid），
+# ConsoleSink 依赖 DefaultFormatter（默认构造时用），sink.h 里 LogSink 是抽象基类
+add_executable(test_format_sink
+    test/test_format_sink.cc
+    formatter/defaultformatter.cc
+    sink/consolesink.cc
+    utils/sys_util.cc)
+
+target_compile_features(test_format_sink PRIVATE cxx_std_17)
+
+target_include_directories(test_format_sink PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_sources(test_format_sink PRIVATE utils/sys_util_win.cc)
+    target_compile_options(test_format_sink PRIVATE /utf-8)
+else()
+    target_sources(test_format_sink PRIVATE utils/sys_util_linux.cc)
+endif()
