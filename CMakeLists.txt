@@ -178,3 +178,22 @@ if(WIN32)
 else()
     target_sources(test_format_sink PRIVATE utils/sys_util_linux.cc)
 endif()
+
+# logfactory + VariabledLogHandle：走 fmt 的运行时格式化路径（format_to），
+# 而项目只带了 fmt 头文件（无 format.cc），所以测试文件顶部定义 FMT_HEADER_ONLY
+# 并 include format-inl.h，让 fmt 的实现正常实例化（否则 extern template 会留空符号）。
+# 依赖链：test → logfactory.cc + loghandle.cc（sink 用测试内的 MockSink，无需 consolesink.cc）
+add_executable(test_logfactory
+    test/test_logfactory.cc
+    logfactory/logfactory.cc
+    loghandle/loghandle.cc)
+
+target_compile_features(test_logfactory PRIVATE cxx_std_17)
+
+target_include_directories(test_logfactory PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_compile_options(test_logfactory PRIVATE /utf-8)
+endif()
