@@ -1,7 +1,33 @@
 cmake_minimum_required(VERSION 3.20)
-project(log_client CXX)
+# C 也必须启用：zlib/ 与 zstd/ 都是纯 C 项目，
+# 只有 CXX 的话 add_subdirectory 进去会报 “No CMAKE_C_COMPILER could be found”
+project(log_client CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
+
+# ============================================================================
+# 第三方库：zlib（deflate 通用压缩）+ zstd（现代高压缩比）
+# 采用源码内嵌 zlib/ 与 zstd/ 的方式（和项目自带 fmt 头文件一个思路）：
+# 两边编译器用同一份源码构建，不依赖系统包管理器，也不用管 vcpkg 三元组。
+# 版本：zlib 1.3.2 / zstd 1.5.6（源码内 ZLIB_VERSION / ZSTD_VERSION_STRING 可查）
+# 两个库都只要静态库：不编测试、不编命令行工具、不安装。
+# ============================================================================
+set(ZLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(ZLIB_BUILD_SHARED   OFF CACHE BOOL "" FORCE)
+set(ZLIB_INSTALL        OFF CACHE BOOL "" FORCE)
+add_subdirectory(zlib)          # 产出 target：zlibstatic
+
+# 多线程支持关掉：日志压缩是单线程场景，开了反而要多链 pthread；
+# LEGACY 支持关掉：不需要解压 zstd v0.1~v0.4 的古老格式，省编译体积；
+# SHARED 必须关：共享库的 add_library 会引用 build/VS2010 下的 .rc 资源文件，
+# 而且日志库只需要静态库（之前漏关，zstd 一直在偷偷编共享库）
+set(ZSTD_BUILD_PROGRAMS       OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_TESTS          OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_CONTRIB        OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_SHARED         OFF CACHE BOOL "" FORCE)
+set(ZSTD_MULTITHREAD_SUPPORT  OFF CACHE BOOL "" FORCE)
+set(ZSTD_LEGACY_SUPPORT       OFF CACHE BOOL "" FORCE)
+add_subdirectory(zstd/build/cmake)  # 产出 target：libzstd_static
 
 add_executable(test_mmap
     test/test_mmap.cc)
@@ -196,4 +222,53 @@ target_include_directories(test_logfactory PRIVATE
 
 if(WIN32)
     target_compile_options(test_logfactory PRIVATE /utf-8)
+endif()
+
+# 压缩库集成测试：链接 zlib / zstd 静态库，验证压缩-解压往返
+# zlib.h / zstd.h 的 include 路径由 target 自动传播（两个库的 CMake
+# 都给自己的静态库设了 INTERFACE/PUBLIC include 目录），不用手写。
+# zstd 的 zconf.h 不同：zlib 的 zconf.h 是 CMake configure 生成的，
+# 但传播路径里已包含生成目录，所以直接 #include "zlib.h" 就能找到它。
+add_executable(test_compress
+    test/test_compress.cc)
+
+target_compile_features(test_compress PRIVATE cxx_std_17)
+
+target_include_directories(test_compress PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/zlib
+    ${PROJECT_SOURCE_DIR}/zstd/lib
+)
+
+target_link_libraries(test_compress PRIVATE
+    zlibstatic
+    libzstd_static
+)
+
+if(WIN32)
+    target_compile_options(test_compress PRIVATE /utf-8)
+endif()
+
+# 自研压缩封装的单元测试：直接把 compress/ 下的源文件编进来
+# （compress 目前还没有自己的 CMake 目标，这里就地编译，不改动源码目录）
+# 和 test_compress.cc 的区别：那个测第三方库能不能用，这个测我们的封装写得对不对。
+add_executable(test_mycompress
+    test/test_mycompress.cc
+    compress/zlib_compress.cc
+    compress/zstd_compress.cc)
+
+target_compile_features(test_mycompress PRIVATE cxx_std_17)
+
+target_include_directories(test_mycompress PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/compress
+)
+
+target_link_libraries(test_mycompress PRIVATE
+    zlibstatic
+    libzstd_static
+)
+
+if(WIN32)
+    target_compile_options(test_mycompress PRIVATE /utf-8)
 endif()
