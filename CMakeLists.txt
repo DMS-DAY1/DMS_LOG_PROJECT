@@ -29,6 +29,15 @@ set(ZSTD_MULTITHREAD_SUPPORT  OFF CACHE BOOL "" FORCE)
 set(ZSTD_LEGACY_SUPPORT       OFF CACHE BOOL "" FORCE)
 add_subdirectory(zstd/build/cmake)  # 产出 target：libzstd_static
 
+# ============================================================================
+# 第三方库：Crypto++ 8.9.0（数据加密）
+# 和上面两个库一样走源码内嵌 cryptopp/。但 Crypto++ 官方不提供 CMakeLists，
+# 那份 cryptopp/CMakeLists.txt 是我们自己写的（规则照抄官方 GNUmakefile）。
+# 产出 target：cryptopp（也有别名 CryptoPP::CryptoPP）
+# 头文件通过 target 的 PUBLIC include 目录传播，调用方写 #include "cryptopp/aes.h"
+# ============================================================================
+add_subdirectory(cryptopp)
+
 add_executable(test_mmap
     test/test_mmap.cc)
 
@@ -271,4 +280,46 @@ target_link_libraries(test_mycompress PRIVATE
 
 if(WIN32)
     target_compile_options(test_mycompress PRIVATE /utf-8)
+endif()
+
+# Crypto++ 集成验证：链接 cryptopp 静态库，确认 AES-GCM / CBC / SHA-256 能用。
+# 头文件路径完全靠 target 传播（cryptopp 目标设了 PUBLIC 的父目录），
+# 所以这里没有手写 cryptopp 的 include 路径——写 #include "cryptopp/aes.h" 即可。
+add_executable(test_cryptopp
+    test/test_cryptopp.cc)
+
+target_compile_features(test_cryptopp PRIVATE cxx_std_17)
+
+target_include_directories(test_cryptopp PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(test_cryptopp PRIVATE
+    cryptopp
+)
+
+if(WIN32)
+    target_compile_options(test_cryptopp PRIVATE /utf-8)
+endif()
+
+# 自研加密封装的单元测试：直接把 crypt/ 下的源文件编进来
+# （crypt 目前还没有自己的 CMake 目标，这里就地编译，不改动源码目录）
+# 和 test_cryptopp.cc 的区别：那个测第三方库能不能用，这个测我们的封装写得对不对。
+add_executable(test_mycrypt
+    test/test_mycrypt.cc
+    crypt/crypt.cc
+    crypt/aes_crypt.cc)
+
+target_compile_features(test_mycrypt PRIVATE cxx_std_17)
+
+target_include_directories(test_mycrypt PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(test_mycrypt PRIVATE
+    cryptopp
+)
+
+if(WIN32)
+    target_compile_options(test_mycrypt PRIVATE /utf-8)
 endif()
