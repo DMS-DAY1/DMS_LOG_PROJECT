@@ -38,6 +38,30 @@ add_subdirectory(zstd/build/cmake)  # 产出 target：libzstd_static
 # ============================================================================
 add_subdirectory(cryptopp)
 
+# ============================================================================
+# 第三方库：protobuf 21.12（结构化序列化）
+# 同上，源码内嵌 protobuf/。选 21.12 而不是 v22+ 的原因：从 v22 起 protobuf
+# 强依赖 abseil（要再接十几个子库），21.12 是最后一个自包含版本。
+# 产出三个 target：libprotobuf（运行时）、libprotoc（编译器库）、protoc（可执行）
+#
+# 各选项的含义：
+#   BUILD_TESTS/CONFORMANCE/EXAMPLES OFF —— 不编测试、一致性测试、示例（省一半编译量）
+#   BUILD_PROTOC_BINARIES ON —— 必须编 protoc，否则 .proto 没东西生成代码
+#   BUILD_SHARED_LIBS OFF —— 只要静态库，和 zlib/zstd 保持一致
+#   WITH_ZLIB OFF —— 不用 protobuf 的 gzip 流，别让它去 find_package(ZLIB) 撞上系统库
+#   MSVC_STATIC_RUNTIME OFF —— 这一项最要紧：默认 ON 会给 protobuf 加 /MT，
+#     而本项目其余目标都是 /MD，混用会在链接期报 LNK2038（RuntimeLibrary 不匹配）
+# ============================================================================
+set(protobuf_BUILD_TESTS           OFF CACHE BOOL "" FORCE)
+set(protobuf_BUILD_CONFORMANCE     OFF CACHE BOOL "" FORCE)
+set(protobuf_BUILD_EXAMPLES        OFF CACHE BOOL "" FORCE)
+set(protobuf_BUILD_PROTOC_BINARIES ON  CACHE BOOL "" FORCE)
+set(protobuf_BUILD_SHARED_LIBS     OFF CACHE BOOL "" FORCE)
+set(protobuf_INSTALL               OFF CACHE BOOL "" FORCE)
+set(protobuf_WITH_ZLIB             OFF CACHE BOOL "" FORCE)
+set(protobuf_MSVC_STATIC_RUNTIME   OFF CACHE BOOL "" FORCE)
+add_subdirectory(protobuf)
+
 add_executable(test_mmap
     test/test_mmap.cc)
 
@@ -322,4 +346,44 @@ target_link_libraries(test_mycrypt PRIVATE
 
 if(WIN32)
     target_compile_options(test_mycrypt PRIVATE /utf-8)
+endif()
+
+# protobuf 集成验证：protoc 生成代码 + 序列化往返
+# 生成文件放进 build 目录（不污染源码树），.proto 改动后自动重新生成。
+# $<TARGET_FILE:protoc> 而不是写死路径：多配置生成器下 protoc.exe 在
+# build/protobuf/Release/ 或 Debug/ 下，取决于当前构建配置，写死会找错。
+set(PB_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/proto)
+set(PB_GEN_DIR   ${CMAKE_CURRENT_BINARY_DIR}/pbgen)
+file(MAKE_DIRECTORY ${PB_GEN_DIR})
+
+add_custom_command(
+    OUTPUT  ${PB_GEN_DIR}/log_record.pb.cc
+            ${PB_GEN_DIR}/log_record.pb.h
+    COMMAND protoc
+            --proto_path=${PB_PROTO_DIR}
+            --cpp_out=${PB_GEN_DIR}
+            ${PB_PROTO_DIR}/log_record.proto
+    DEPENDS ${PB_PROTO_DIR}/log_record.proto
+    COMMENT "protoc: log_record.proto -> log_record.pb.{h,cc}"
+    VERBATIM)
+
+add_executable(test_protobuf
+    test/test_protobuf.cc
+    ${PB_GEN_DIR}/log_record.pb.cc)
+
+target_compile_features(test_protobuf PRIVATE cxx_std_17)
+
+# libprotobuf 已经把 protobuf/src 作为 PUBLIC include 目录传播过来了，
+# 所以 <google/protobuf/...> 不用手写；这里只需要加生成目录（log_record.pb.h 在 build 里）
+target_include_directories(test_protobuf PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${PB_GEN_DIR}
+)
+
+target_link_libraries(test_protobuf PRIVATE
+    libprotobuf
+)
+
+if(WIN32)
+    target_compile_options(test_protobuf PRIVATE /utf-8)
 endif()
