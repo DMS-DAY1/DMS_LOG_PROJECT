@@ -357,24 +357,24 @@ set(PB_GEN_DIR   ${CMAKE_CURRENT_BINARY_DIR}/pbgen)
 file(MAKE_DIRECTORY ${PB_GEN_DIR})
 
 add_custom_command(
-    OUTPUT  ${PB_GEN_DIR}/log_record.pb.cc
-            ${PB_GEN_DIR}/log_record.pb.h
+    OUTPUT  ${PB_GEN_DIR}/effective_msg.pb.cc
+            ${PB_GEN_DIR}/effective_msg.pb.h
     COMMAND protoc
             --proto_path=${PB_PROTO_DIR}
             --cpp_out=${PB_GEN_DIR}
-            ${PB_PROTO_DIR}/log_record.proto
-    DEPENDS ${PB_PROTO_DIR}/log_record.proto
-    COMMENT "protoc: log_record.proto -> log_record.pb.{h,cc}"
+            ${PB_PROTO_DIR}/effective_msg.proto
+    DEPENDS ${PB_PROTO_DIR}/effective_msg.proto
+    COMMENT "protoc: effective_msg.proto -> effective_msg.pb.{h,cc}"
     VERBATIM)
 
 add_executable(test_protobuf
     test/test_protobuf.cc
-    ${PB_GEN_DIR}/log_record.pb.cc)
+    ${PB_GEN_DIR}/effective_msg.pb.cc)
 
 target_compile_features(test_protobuf PRIVATE cxx_std_17)
 
 # libprotobuf 已经把 protobuf/src 作为 PUBLIC include 目录传播过来了，
-# 所以 <google/protobuf/...> 不用手写；这里只需要加生成目录（log_record.pb.h 在 build 里）
+# 所以 <google/protobuf/...> 不用手写；这里只需要加生成目录（effective_msg.pb.h 在 build 里）
 target_include_directories(test_protobuf PRIVATE
     ${PROJECT_SOURCE_DIR}
     ${PB_GEN_DIR}
@@ -386,4 +386,30 @@ target_link_libraries(test_protobuf PRIVATE
 
 if(WIN32)
     target_compile_options(test_protobuf PRIVATE /utf-8)
+endif()
+
+# EffectiveFormatter 单元测试：验证 LogMsg -> EffectiveMsg 序列化
+# 把 formatter/effectiveformatter.cc 编进测试（这是它第一次真正进入构建，
+# 之前它是孤儿文件，从未被编译器验证过）。依赖链：
+#   test -> effectiveformatter.cc + sys_util.cc(.win) + effective_msg.pb.cc
+add_executable(test_effectiveformatter
+    test/test_effectiveformatter.cc
+    formatter/effectiveformatter.cc
+    utils/sys_util.cc
+    ${PB_GEN_DIR}/effective_msg.pb.cc)
+
+target_compile_features(test_effectiveformatter PRIVATE cxx_std_17)
+
+target_include_directories(test_effectiveformatter PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${PB_GEN_DIR}
+)
+
+target_link_libraries(test_effectiveformatter PRIVATE
+    libprotobuf
+)
+
+if(WIN32)
+    target_sources(test_effectiveformatter PRIVATE utils/sys_util_win.cc)
+    target_compile_options(test_effectiveformatter PRIVATE /utf-8)
 endif()
