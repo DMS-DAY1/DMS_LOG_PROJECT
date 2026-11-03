@@ -6,6 +6,11 @@
 
 #include "fmt/chrono.h"
 
+// fmt/std.h 提供 std::filesystem::path 等标准库类型的 formatter，
+// 缺少它时 LOG_INFO("... {}", 某个 path) 会报
+// type_is_unformattable_for<T, char>（T = std::filesystem::path）。
+#include "fmt/std.h"
+
 #include "fmt/core.h"
 
 #define LOG_INFO(...)                                                            \

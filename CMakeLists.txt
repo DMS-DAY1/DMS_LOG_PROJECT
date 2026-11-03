@@ -67,17 +67,17 @@ add_executable(test_mmap
 
 # 源文件级条件编译：Windows 用 mmap_win.cc，Linux 用 mmap_linux.cc
 if(WIN32)
-    target_sources(test_mmap PRIVATE src/mmap/mmap_win.cc)
+    target_sources(test_mmap PRIVATE mmap/mmap_win.cc)
     # MSVC 需要它才能正确解析 UTF-8 源码（gcc/clang 没有这个选项）
     target_compile_options(test_mmap PRIVATE /utf-8)
 else()
-    target_sources(test_mmap PRIVATE src/mmap/mmap_linux.cc)
+    target_sources(test_mmap PRIVATE mmap/mmap_linux.cc)
 endif()
 
 target_compile_features(test_mmap PRIVATE cxx_std_17)
 
 target_include_directories(test_mmap PRIVATE
-    src
+    ${PROJECT_SOURCE_DIR}
 )
 
 add_executable(test_defer test/test_defer.cc)
@@ -412,4 +412,64 @@ target_link_libraries(test_effectiveformatter PRIVATE
 if(WIN32)
     target_sources(test_effectiveformatter PRIVATE utils/sys_util_win.cc)
     target_compile_options(test_effectiveformatter PRIVATE /utf-8)
+endif()
+
+# EffectiveSink 端到端测试：验证 构造 -> 写日志 -> zstd 压缩 -> AES 加密
+# -> 双缓冲 mmap 落盘 -> 读回文件头 -> 服务器私钥协商 -> 解密 -> 解压 -> 反序列化。
+# 依赖链：test -> effectivesink.cc + effectiveformatter.cc
+#   + context(单例) + strand(Executor / ExecutorContext / executortimer)
+#   + crypt(crypt.cc, aes_crypt.cc) + compress(zstd_compress.cc)
+#   + utils(sys_util, file_util) + effective_msg.pb.cc
+add_executable(test_effectivesink
+    test/test_effectivesink.cc
+    sink/effectivesink.cc
+    formatter/effectiveformatter.cc
+    context/context.cc
+    strand/Executor.cc
+    strand/ExecutorContext.cc
+    strand/executortimer.cc
+    crypt/crypt.cc
+    crypt/aes_crypt.cc
+    compress/zstd_compress.cc
+    utils/sys_util.cc
+    utils/file_util.cc
+    ${PB_GEN_DIR}/effective_msg.pb.cc)
+
+target_compile_features(test_effectivesink PRIVATE cxx_std_17)
+
+# 注意：sink/effectivesink.h 及其依赖头目前混用两种 include 风格——
+#   * 带前缀： #include "log_msg/log_msg.h"（依赖项目根）
+#   * 裸文件名：#include "space.h" / "crypt.h"（依赖各自所在目录）
+# 因此这里把相关兄弟目录一并加入搜索路径，保证裸名 include 可解析。
+target_include_directories(test_effectivesink PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/sink
+    ${PROJECT_SOURCE_DIR}/space
+    ${PROJECT_SOURCE_DIR}/context
+    ${PROJECT_SOURCE_DIR}/crypt
+    ${PROJECT_SOURCE_DIR}/mmap
+    ${PROJECT_SOURCE_DIR}/compress
+    ${PROJECT_SOURCE_DIR}/formatter
+    ${PROJECT_SOURCE_DIR}/log_msg
+    ${PROJECT_SOURCE_DIR}/strand
+    ${PROJECT_SOURCE_DIR}/utils
+    ${PROJECT_SOURCE_DIR}/internal_log
+    ${PB_GEN_DIR}
+)
+
+target_link_libraries(test_effectivesink PRIVATE
+    libzstd_static
+    cryptopp
+    libprotobuf
+)
+
+if(WIN32)
+    target_sources(test_effectivesink PRIVATE
+        utils/sys_util_win.cc
+        mmap/mmap_win.cc)
+    target_compile_options(test_effectivesink PRIVATE /utf-8)
+    target_compile_definitions(test_effectivesink PRIVATE CAN_LOG)
+else()
+    target_sources(test_effectivesink PRIVATE
+        mmap/mmap_linux.cc)
 endif()
