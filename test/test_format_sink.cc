@@ -50,10 +50,10 @@ my_log::LogMsg MakeMsg(my_log::Log_Level level, const std::string& text) {
 
 // ============ DefaultFormatter ============
 
-// 用例 1：整体格式 [time] [L] [file:line] [pid:tid] message
+// 用例 1：整体格式 [time] [L] [file:func:line] [pid:tid] message
 void CaseFormatStructure() {
     std::cout << "[1] DefaultFormatter 整体格式" << std::endl;
-    const std::string buf = FormatOne(MakeMsg(my_log::Log_Level::Info, "hello"));
+    const std::string buf = FormatOne(MakeMsg(my_log::Log_Level::kInfo, "hello"));
 
     // 时间串必须是 [2026-10-17 18:00:00] 这种定长 19 字符，']' 正好落在下标 20
     Check(buf.size() > 20 && buf.front() == '[', "以 '[' 开头");
@@ -63,7 +63,7 @@ void CaseFormatStructure() {
           "时间串含日期与时间分隔符");
 
     Check(buf.find("] [I] [") != std::string::npos, "级别段是 ] [I] [");
-    Check(buf.find("[main.cc:42]") != std::string::npos, "文件名被截断成 main.cc，行号 42");
+    Check(buf.find("[main.cc:main:42]") != std::string::npos, "文件名被截断成 main.cc，行号 42");
 
     const std::string pid_tid = "[" + std::to_string(my_log::GetProcessId()) + ":" +
                                 std::to_string(my_log::GetThreadId()) + "]";
@@ -78,9 +78,9 @@ void CaseLevelChars() {
     std::cout << "[2] 级别字符映射 TDIWEFO" << std::endl;
     const std::string kExpect = "TDIWEFO";
     const my_log::Log_Level levels[] = {
-        my_log::Log_Level::Trance, my_log::Log_Level::Debug, my_log::Log_Level::Info,
-        my_log::Log_Level::Warn,   my_log::Log_Level::Error, my_log::Log_Level::Fatal,
-        my_log::Log_Level::Off,
+        my_log::Log_Level::kTrace, my_log::Log_Level::kDebug, my_log::Log_Level::kInfo,
+        my_log::Log_Level::kWarn,   my_log::Log_Level::kError, my_log::Log_Level::kFatal,
+        my_log::Log_Level::kOff,
     };
     bool all_ok = true;
     for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); ++i) {
@@ -99,22 +99,22 @@ void CaseLevelChars() {
 void CaseLocationTrim() {
     std::cout << "[3] SourceLocation 路径截断" << std::endl;
     const std::string b1 = FormatOne(my_log::LogMsg(
-        my_log::SourceLocation("a/b/c/file.cc", "f", 7), my_log::Log_Level::Warn, "m"));
-    Check(b1.find("[file.cc:7]") != std::string::npos, "正斜杠路径只留文件名");
+        my_log::SourceLocation("a/b/c/file.cc", "f", 7), my_log::Log_Level::kWarn, "m"));
+    Check(b1.find("[file.cc:f:7]") != std::string::npos, "正斜杠路径只留文件名");
 
     const std::string b2 = FormatOne(my_log::LogMsg(
-        my_log::SourceLocation("C:\\dir\\sub\\file.cc", "f", 8), my_log::Log_Level::Warn, "m"));
-    Check(b2.find("[file.cc:8]") != std::string::npos, "反斜杠路径只留文件名");
+        my_log::SourceLocation("C:\\dir\\sub\\file.cc", "f", 8), my_log::Log_Level::kWarn, "m"));
+    Check(b2.find("[file.cc:f:8]") != std::string::npos, "反斜杠路径只留文件名");
 
     const std::string b3 = FormatOne(my_log::LogMsg(
-        my_log::SourceLocation("bare.cc", "f", 9), my_log::Log_Level::Warn, "m"));
-    Check(b3.find("[bare.cc:9]") != std::string::npos, "无目录路径原样保留");
+        my_log::SourceLocation("bare.cc", "f", 9), my_log::Log_Level::kWarn, "m"));
+    Check(b3.find("[bare.cc:f:9]") != std::string::npos, "无目录路径原样保留");
 }
 
 // 用例 4：空 message 不崩，且仍以 "] " 收尾
 void CaseEmptyMessage() {
     std::cout << "[4] 空 message 边界" << std::endl;
-    const std::string buf = FormatOne(MakeMsg(my_log::Log_Level::Info, ""));
+    const std::string buf = FormatOne(MakeMsg(my_log::Log_Level::kInfo, ""));
     Check(buf.find("] ") != std::string::npos, "仍有时钟/级别/位置段");
     Check(buf.size() >= 2 && buf.compare(buf.size() - 2, 2, "] ") == 0, "以 \"] \" 结尾");
 }
@@ -124,7 +124,7 @@ void CaseDestAppendSemantics() {
     std::cout << "[5] dest 累加语义（Format 前不清空 dest）" << std::endl;
     my_log::DefaultFormatter fmt;
     std::string buf;
-    const my_log::LogMsg msg = MakeMsg(my_log::Log_Level::Info, "hello");
+    const my_log::LogMsg msg = MakeMsg(my_log::Log_Level::kInfo, "hello");
     fmt.Format(msg, &buf);
     const size_t first = buf.size();
     fmt.Format(msg, &buf);
@@ -177,13 +177,13 @@ std::string CaptureConsoleLog(my_log::ConsoleSink& sink, const my_log::LogMsg& m
 void CaseConsoleSinkDefault() {
     std::cout << "[6] ConsoleSink 默认 Log 输出" << std::endl;
     my_log::ConsoleSink sink;
-    const std::string out = CaptureConsoleLog(sink, MakeMsg(my_log::Log_Level::Info, "hello"));
+    const std::string out = CaptureConsoleLog(sink, MakeMsg(my_log::Log_Level::kInfo, "hello"));
 
     Check(out.size() >= 40, "捕获到非空输出");
     Check(out.front() == '[', "以时间段的 '[' 开头");
     Check(out.back() == '\n', "以换行结尾");
     Check(out.find("] [I] [") != std::string::npos, "默认 formatter 的级别段 ] [I] [");
-    Check(out.find("[main.cc:42]") != std::string::npos, "默认 formatter 的位置段");
+    Check(out.find("[main.cc:main:42]") != std::string::npos, "默认 formatter 的位置段");
     Check(out.find("hello\n") != std::string::npos, "message 与换行都在");
     Check(out.find('\n') == out.size() - 1, "只有一行（没有多余换行）");
 }
@@ -203,7 +203,7 @@ void CaseConsoleSinkSetFormatter() {
     std::cout << "[7] ConsoleSink::SetFormatter 自定义格式" << std::endl;
     my_log::ConsoleSink sink;
     sink.SetFormatter(std::make_unique<UpperFormatter>());
-    const std::string out = CaptureConsoleLog(sink, MakeMsg(my_log::Log_Level::Info, "hello"));
+    const std::string out = CaptureConsoleLog(sink, MakeMsg(my_log::Log_Level::kInfo, "hello"));
     Check(out == "MOCK:HELLO\n", "输出精确等于自定义格式（实际: " + out + "）");
 }
 

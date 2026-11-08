@@ -55,7 +55,7 @@ int main() {
         std::printf("[用例1] 基本字段往返\n");
         my_log::LogMsg msg(
             my_log::SourceLocation("src/logger.cc", "DoWork", 123),
-            my_log::Log_Level::Info,
+            my_log::Log_Level::kInfo,
             "hello effective formatter");
         std::string wire;
         my_log::EffectiveFormatter fmt;
@@ -63,7 +63,7 @@ int main() {
 
         my_log::proto::EffectiveMsg m;
         Check(Decode(wire, &m), "ParseFromArray 成功");
-        Check(m.level() == static_cast<int32_t>(my_log::Log_Level::Info),
+        Check(m.level() == static_cast<int32_t>(my_log::Log_Level::kInfo),
               "level == Info 的底层值");
         Check(m.timestamp() > 0, "timestamp 为正数（毫秒）");
         Check(m.pid() == static_cast<int32_t>(my_log::GetProcessId()), "pid 正确");
@@ -78,10 +78,10 @@ int main() {
     {
         std::printf("[用例2] Log_Level 全枚举映射\n");
         const my_log::Log_Level levels[] = {
-            my_log::Log_Level::Trance, my_log::Log_Level::Debug,
-            my_log::Log_Level::Info,   my_log::Log_Level::Warn,
-            my_log::Log_Level::Error,  my_log::Log_Level::Fatal,
-            my_log::Log_Level::Off};
+            my_log::Log_Level::kTrace, my_log::Log_Level::kDebug,
+            my_log::Log_Level::kInfo,   my_log::Log_Level::kWarn,
+            my_log::Log_Level::kError,  my_log::Log_Level::kFatal,
+            my_log::Log_Level::kOff};
         my_log::EffectiveFormatter fmt;
         for (auto lv : levels) {
             my_log::LogMsg msg(my_log::SourceLocation("a.cc", "f", 1), lv, "x");
@@ -100,10 +100,10 @@ int main() {
         my_log::EffectiveFormatter fmt;
         std::string wire;
         my_log::LogMsg m1(my_log::SourceLocation("a.cc", "f1", 1),
-                          my_log::Log_Level::Debug, "first-message");
+                          my_log::Log_Level::kDebug, "first-message");
         fmt.Format(m1, &wire);
         my_log::LogMsg m2(my_log::SourceLocation("b.cc", "f2", 2),
-                          my_log::Log_Level::Error, "second-message");
+                          my_log::Log_Level::kError, "second-message");
         fmt.Format(m2, &wire);  // 复用同一个 wire
 
         my_log::proto::EffectiveMsg m;
@@ -118,7 +118,7 @@ int main() {
         std::printf("[用例4] 超长正文往返\n");
         std::string big(50000, 'x');
         my_log::LogMsg msg(my_log::SourceLocation("f.cc", "g", 7),
-                           my_log::Log_Level::Warn, big);
+                           my_log::Log_Level::kWarn, big);
         std::string wire;
         my_log::EffectiveFormatter fmt;
         fmt.Format(msg, &wire);
@@ -132,7 +132,7 @@ int main() {
     {
         std::printf("[用例5] 中文内容往返\n");
         my_log::LogMsg msg(my_log::SourceLocation("中文路径.cc", "处理函数", 9),
-                           my_log::Log_Level::Fatal, "错误信息：连接数据库失败");
+                           my_log::Log_Level::kFatal, "错误信息：连接数据库失败");
         std::string wire;
         my_log::EffectiveFormatter fmt;
         fmt.Format(msg, &wire);

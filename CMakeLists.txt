@@ -62,6 +62,10 @@ set(protobuf_WITH_ZLIB             OFF CACHE BOOL "" FORCE)
 set(protobuf_MSVC_STATIC_RUNTIME   OFF CACHE BOOL "" FORCE)
 add_subdirectory(protobuf)
 
+# fmt 只带头文件：编译期统一给 FMT_HEADER_ONLY，保证任何 TU 里 fmt 头首次展开就走 header-only。
+# 用空值以兼容源码中已有的 #define FMT_HEADER_ONLY，避免 C4005 宏重定义。
+add_compile_definitions(FMT_HEADER_ONLY=)
+
 add_executable(test_mmap
     test/test_mmap.cc)
 
@@ -472,4 +476,100 @@ if(WIN32)
 else()
     target_sources(test_effectivesink PRIVATE
         mmap/mmap_linux.cc)
+endif()
+
+# ============================================================================
+# decode：日志解析命令行工具
+#   decode.cc 自带 main()，所以是独立可执行目标。此前 decode/ 没进任何 target，
+#   IDE 拿不到 compile_commands 条目、找不到 build/pbgen 下的 effective_msg.pb.h，
+#   这就是 decode_formatter.h 整片爆红的根因。
+# ============================================================================
+add_executable(decode
+    decode/decode.cc
+    decode/decode_formatter.cc
+    crypt/crypt.cc
+    crypt/aes_crypt.cc
+    compress/zstd_compress.cc
+    ${PB_GEN_DIR}/effective_msg.pb.cc)
+
+target_compile_features(decode PRIVATE cxx_std_17)
+
+# decode/ 里混用了裸文件名 include（"space.h" / <crypt.h> / "zstd_compress.h"）
+# 和带前缀 include（"log_msg/log_msg.h"），两类路径都要给。
+set(DECODE_INCLUDE_DIRS
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/decode
+    ${PROJECT_SOURCE_DIR}/sink
+    ${PROJECT_SOURCE_DIR}/space
+    ${PROJECT_SOURCE_DIR}/context
+    ${PROJECT_SOURCE_DIR}/crypt
+    ${PROJECT_SOURCE_DIR}/mmap
+    ${PROJECT_SOURCE_DIR}/compress
+    ${PROJECT_SOURCE_DIR}/formatter
+    ${PROJECT_SOURCE_DIR}/log_msg
+    ${PROJECT_SOURCE_DIR}/strand
+    ${PROJECT_SOURCE_DIR}/utils
+    ${PROJECT_SOURCE_DIR}/internal_log
+    ${PB_GEN_DIR}
+)
+
+target_include_directories(decode PRIVATE ${DECODE_INCLUDE_DIRS})
+target_link_libraries(decode PRIVATE
+    libzstd_static
+    cryptopp
+    libprotobuf
+)
+
+if(WIN32)
+    target_compile_options(decode PRIVATE /utf-8)
+    target_compile_definitions(decode PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+# ============================================================================
+# test_decode：decode 模块端到端测试
+#   test/test_decode.cc 里用宏把 decode.cc 的 main 改名后直接 include 进来，
+#   以便复用 DecodeFile / DecodeChunkData，因此这里【不要】再列 decode/decode.cc，
+#   否则会重复定义。
+# ============================================================================
+add_executable(test_decode
+    test/test_decode.cc
+    decode/decode_formatter.cc
+    crypt/crypt.cc
+    crypt/aes_crypt.cc
+    compress/zstd_compress.cc
+    ${PB_GEN_DIR}/effective_msg.pb.cc)
+
+target_compile_features(test_decode PRIVATE cxx_std_17)
+target_include_directories(test_decode PRIVATE ${DECODE_INCLUDE_DIRS})
+target_link_libraries(test_decode PRIVATE
+    libzstd_static
+    cryptopp
+    libprotobuf
+)
+
+if(WIN32)
+    target_compile_options(test_decode PRIVATE /utf-8)
+    target_compile_definitions(test_decode PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+# ============================================================================
+# test_my_log：对外头 my_log/my_log.h 的自动化回归。
+#   依赖链与 test_logfactory 相同（sink 用测试内的 RecordingSink，无需 consolesink.cc）。
+#   test_my_log_fmt_order.cc 故意先 include fmt/format.h，用来守住第 67 行的
+#   add_compile_definitions(FMT_HEADER_ONLY=)：删掉它，这个 TU 立刻 LNK2019。
+# ============================================================================
+add_executable(test_my_log
+    test/test_my_log.cc
+    test/test_my_log_fmt_order.cc
+    logfactory/logfactory.cc
+    loghandle/loghandle.cc)
+
+target_compile_features(test_my_log PRIVATE cxx_std_17)
+
+target_include_directories(test_my_log PRIVATE
+    ${PROJECT_SOURCE_DIR}
+)
+
+if(WIN32)
+    target_compile_options(test_my_log PRIVATE /utf-8)
 endif()

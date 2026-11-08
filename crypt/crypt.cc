@@ -18,8 +18,6 @@
 
 #include "cryptopp/osrng.h"
 
-// GenECDHSharedSecret 里用到了 std::runtime_error，
-// 显式包含，别指望 <string> 之类的头会顺手把它带进来。
 #include <stdexcept>
 
 namespace my_log {

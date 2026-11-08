@@ -164,7 +164,7 @@ int main() {
         for (int i = 0; i < 3; ++i) {
             my_log::LogMsg m(
                 my_log::SourceLocation(cases[i].first, "func", i + 1),
-                my_log::Log_Level::Info, cases[i].second);
+                my_log::Log_Level::kInfo, cases[i].second);
             sink.Log(m);
         }
         sink.Flush();
@@ -243,7 +243,7 @@ int main() {
 
         my_log::EffectiveSink sink(conf);
         my_log::LogMsg m(my_log::SourceLocation("b.cc", "handler", 5),
-                         my_log::Log_Level::Error, "hello sink test");
+                         my_log::Log_Level::kError, "hello sink test");
         sink.Log(m);
         sink.Flush();
 
@@ -278,7 +278,7 @@ int main() {
                     Check(parsed, "单条：protobuf 反序列化成功");
                     if (parsed) {
                         Check(em.log_info() == "hello sink test", "单条：log_info 回放正确");
-                        Check(em.level() == static_cast<int32_t>(my_log::Log_Level::Error),
+                        Check(em.level() == static_cast<int32_t>(my_log::Log_Level::kError),
                               "单条：level 回放正确");
                         Check(em.line() == 5, "单条：line 回放正确");
                     }
