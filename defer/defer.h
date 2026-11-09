@@ -4,7 +4,7 @@
 
 
 
-namespace defer{
+namespace my_log {
     class ExecuteOnScopeExit {
     public:
         template<typename F, typename... Args>
@@ -29,7 +29,7 @@ namespace defer{
 
 #define LOG_COMBINE(a, b) a##b
 
-#define LOG_MK(line) defer::ExecuteOnScopeExit LOG_COMBINE(defer, line) = [&]()
+#define LOG_MK(line) my_log::ExecuteOnScopeExit LOG_COMBINE(defer, line) = [&]()
 
 #undef LOG_DEFER
 
